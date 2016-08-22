@@ -1,6 +1,7 @@
 package ayp.aug.photogallery;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
@@ -10,8 +11,10 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.util.LruCache;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
@@ -24,6 +27,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import java.io.IOException;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +37,7 @@ import java.util.List;
  */
 public class PhotoGalleryFragment extends Fragment {
     private static final String TAG = "PhotoGalleryFragment";
+    private static final String LARGE_PHOTO = "LARGE_PHOTO";
 
     public static PhotoGalleryFragment newInstance() {
 
@@ -163,7 +169,7 @@ public class PhotoGalleryFragment extends Fragment {
     public void onResume() {
         super.onResume();
         String searchKey = PhotoGalleryPreference.getStoreSearchKey(getActivity());
-        if(searchKey != null)
+        if (searchKey != null)
             mSearchKey = searchKey;
     }
 
@@ -173,7 +179,6 @@ public class PhotoGalleryFragment extends Fragment {
 
         PhotoGalleryPreference.setStoredSearchKey(getActivity(), mSearchKey);
     }
-
 
 
     @Override
@@ -207,14 +212,15 @@ public class PhotoGalleryFragment extends Fragment {
         return v;
     }
 
-    class PhotoHolder extends RecyclerView.ViewHolder {
+    class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
+
+        String mBigUrl;
         ImageView mPhoto;
-
         public PhotoHolder(View itemView) {
             super(itemView);
-
             mPhoto = (ImageView) itemView.findViewById(R.id.image_photo);
+            mPhoto.setOnClickListener(this);
         }
 
         public void bindDrawable(@NonNull Drawable drawable) {
@@ -222,6 +228,61 @@ public class PhotoGalleryFragment extends Fragment {
         }
 
 
+
+        public void setBigUrl(String bigUrl){
+            mBigUrl = bigUrl;
+        }
+
+        @Override
+        public void onClick(View view) {
+            Log.i(TAG, "Photo clicked!!!");
+            final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            final ImageView imgView = new ImageView(getActivity());
+            imgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            builder.setView(imgView);
+            builder.setPositiveButton("Close", null);
+
+            // Execute Async Task
+            new AsyncTask<String, Void, Bitmap>() {
+                @Override
+                protected Bitmap doInBackground(String... urls) {
+                    FlickrFetcher flickrFetcher = new FlickrFetcher();
+                    Bitmap bm = null;
+
+                    try {
+                        byte[] bytes = flickrFetcher.getUrlBytes(urls[0]);
+                        bm = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    } catch (IOException ioe) {
+                        Log.e(TAG, "error in read Bitmap ", ioe);
+                        return null;
+                    }
+                    return bm;
+                }
+
+                @Override
+                protected void onPostExecute(Bitmap bitmap) {
+                    builder.create().show();
+                    imgView.setImageDrawable(new BitmapDrawable(getResources(), bitmap));
+                }
+            }.execute(mBigUrl);
+//            FragmentManager fm = getFragmentManager();
+//            // download photo
+//            String url_s = mItems.get(mPosition).getUrl();
+//            String url_c = url_s.replace("_s.jpg", "_c.jpg");
+//            try {
+//                byte[] bytes  = mFlickrFetcher.getUrlBytes(url_c);
+//                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+//                LargePhotoDialogFragment lp = new LargePhotoDialogFragment().newInstance(bitmap); // todo add bitmap here !!
+//                lp.show(fm, LARGE_PHOTO);
+//
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//
+//            ////
+
+        }
     }
 
     class PhotoGalleryAdapter extends RecyclerView.Adapter<PhotoHolder> {
@@ -247,6 +308,7 @@ public class PhotoGalleryFragment extends Fragment {
 
             Log.d(TAG, "onBindViewHolder: bind position #" + position + ", url: " + galleryItem.getUrl());
             holder.bindDrawable(pukingRainbowsDrawable);
+            holder.setBigUrl(galleryItem.getBigSizeUrl());
 
             if (mMemoryCache.get(galleryItem.getUrl()) != null) {
                 Bitmap bitmap = mMemoryCache.get(galleryItem.getUrl());

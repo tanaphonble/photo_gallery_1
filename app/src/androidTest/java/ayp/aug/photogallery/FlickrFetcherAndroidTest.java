@@ -12,6 +12,7 @@ import java.util.List;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.*;
 
 /**
@@ -47,12 +48,13 @@ public class FlickrFetcherAndroidTest {
         assertThat(galleryItemList.size(), not(0));
     }
 
-
+    @Test
     public void testGetRecent() throws Exception {
         List<GalleryItem> galleryItemList = new ArrayList<>();
         mFlickrFetcher.getRecentPhotos(galleryItemList);
-
-        assertThat(galleryItemList.size(), not(0));
+        assertThat(galleryItemList.get(0).getBigSizeUrl(), notNullValue());
     }
+
+
 
 }
